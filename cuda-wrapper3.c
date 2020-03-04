@@ -46,14 +46,14 @@ void getCurrentTime(char *buff) {
 }
 
 void addHash(unsigned long long key,size_t value) {
-    int temp=(key >> 51);
-    //printf("addHash:%d\n",temp);
+    int temp=key >> 19;
     if(allocsize[temp].key==0) {
-	allocsize[temp].key=key;
+        allocsize[temp].key=key;
         allocsize[temp].value=value;
+        //printf("allocsize %lld %zu\n", key, value);
     } 
     else if(allocsize[temp].key==key) {
-        allocsize[temp].value=value;
+        allocsize[temp].value=value;     
     } 
     else {
         struct HashArray *p=&allocsize[temp];       
@@ -125,7 +125,7 @@ void nvml_memquery() {
 
 void init_func() {
     if(open_flag == 0 && handle == NULL) {
-        /*int fd;
+        int fd;
         fd = open(LOG_FILENAME, O_WRONLY | O_CREAT, 0644);
         if (fd == -1) {
             perror("open log file failed");
@@ -135,7 +135,7 @@ void init_func() {
         if (dup2(fd, 1) == -1) {
             perror("dup2 failed"); 
             exit(1);
-        }*/
+        }
 
         //char *error;
     	handle = dlopen (LIB_STRING, RTLD_LAZY);
@@ -219,11 +219,11 @@ cudaError_t cudaMalloc( void** devPtr, size_t bytesize) {
 		cudaError_t r= (*fakecudaMalloc)( devPtr , bytesize);
 		//nvml_memquery();
 		if(cudaSuccess != r) {
-	    		//printf("lock if r != CUDA_SUCCESS\n");
-            
+	    	//printf("lock if r != CUDA_SUCCESS\n");
+            //
 	   		pthread_mutex_lock(&mem_cnt_lock);
-	    		total_mem -= bytesize;                  
-	    		//printf("ibs: %zu\n", bytesize);
+	    	total_mem -= bytesize;                  
+	    	//printf("ibs: %zu\n", bytesize);
 	   		pthread_mutex_unlock(&mem_cnt_lock);
 	 		//printf("unlock if r != CUDA_SUCCESS\n ");
 		} else {			
@@ -231,9 +231,9 @@ cudaError_t cudaMalloc( void** devPtr, size_t bytesize) {
 			unsigned long long p = (unsigned long long)(devPtr);
 			//printf("cudaMalloc:??????????????????????%lld\n", p);
 			addHash(p,bytesize);
-    			getCurrentTime(timebuf);
-            		printf("Time: %s  total_mem: %zu bytesize: %zu total_quota: %zu \n", timebuf, total_mem, bytesize, total_quota);
-            		//nvml_memquery();
+    		getCurrentTime(timebuf);
+            printf("Time: %s  total_mem: %zu bytesize: %zu total_quota: %zu \n", timebuf, total_mem, bytesize, total_quota);
+            //nvml_memquery();
 			//printf("%zu\n", getHash(*(unsigned long long*(*devPtr)));
 		}
 		
@@ -244,23 +244,21 @@ cudaError_t cudaMalloc( void** devPtr, size_t bytesize) {
 	//dlclose(handle);
 }
 
-cudaError_t cudaFree( void *devPtr ) {
- 
+cudaError_t cudaFree( void* devPtr ) {
+        
 	init_func();
-	cudaError_t (*fakecudaFree)( void * );
-    	fakecudaFree = dlsym(handle, "cudaFree");
-    	if ((error = dlerror()) != NULL)  {
-        	fprintf (stderr, "%s\n", error);
-        	exit(1);
-    	}
+	cudaError_t (*fakecudaFree)( void* );
+    fakecudaFree = dlsym(handle, "cudaFree");
+    if ((error = dlerror()) != NULL)  {
+        fprintf (stderr, "%s\n", error);
+        exit(1);
+    }
 	printf("cudaFree:\n");
 	//nvml_memquery();
-	//printf("cudaFree!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!%lld\n", (unsigned long long) (devPtr));
-	cudaError_t r= (*fakecudaFree)( devPtr );
-	printf("cudaFree:2\n");
+    cudaError_t r= (*fakecudaFree)( devPtr );
 	//nvml_memquery();
-    	//dlclose(handle);
-    	if(r == CUDA_SUCCESS) {
+    //dlclose(handle);
+    if(r == CUDA_SUCCESS) {
 		//printf("lock mem in cumemfree\n");
 		pthread_mutex_lock(&mem_cnt_lock);
 		size_t tbytesize = getHash((unsigned long long)(devPtr));
@@ -274,7 +272,7 @@ cudaError_t cudaFree( void *devPtr ) {
 	}// else {
 	//	printf("%d\n", r);
 	//}
-    	return r;
+    return r;
 }
 
 cudaError_t cudaMemGetInfo( size_t* free , size_t* total) {
@@ -391,19 +389,4 @@ cudaError_t cudaMallocManaged( void** devPtr, size_t bytesize, unsigned int flag
     }
 }
 
-cudaError_t cudaGetDeviceCount( int* count ) {
-        
-    init_func();
-    cudaError_t (*fakecudaGetDeviceCount)(int*);
-    fakecudaGetDeviceCount = dlsym(handle, "cudaGetDeviceCount");
-    //printf("cudaGetDeviceCount:\n");
-    if ((error = dlerror()) != NULL)  {
-        fprintf (stderr, "%s\n", error);
-        exit(1);
-    }
-    //nvml_memquery();
-    cudaError_t r= (*fakecudaGetDeviceCount)(count);
-    //nvml_memquery();
-    //dlclose(handle);
-    return r;
-}
+
